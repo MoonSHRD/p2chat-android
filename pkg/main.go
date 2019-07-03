@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	"github.com/MoonSHRD/p2chat-android/pkg/utils"
 	"github.com/MoonSHRD/p2chat/api"
@@ -33,7 +32,6 @@ var myself host.Host
 var globalCtx context.Context
 var globalCtxCancel context.CancelFunc
 
-var pbMutex sync.Mutex
 var Pb *pubsub.PubSub
 var networkTopics mapset.Set
 var messageQueue utils.Queue
@@ -88,9 +86,9 @@ func PublishMessage(topic string, text string) {
 		return
 	}
 
-	pbMutex.Lock()
+	handler.PbMutex.Lock()
 	err = Pb.Publish(topic, sendData)
-	pbMutex.Unlock()
+	handler.PbMutex.Unlock()
 	if err != nil {
 		fmt.Println("Error occurred when publishing")
 		return
