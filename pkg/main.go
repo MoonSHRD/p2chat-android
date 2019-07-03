@@ -97,8 +97,8 @@ func PublishMessage(topic string, text string) {
 	}
 }
 
-func Start(rendezvous *string, pid *string, listenHost *string, port *int) {
-	cfg := GetConfig(rendezvous, pid, listenHost, port)
+func Start(rendezvous string, pid string, listenHost string, port int) {
+	cfg := GetConfig(&rendezvous, &pid, &listenHost, &port)
 	serviceTopic = cfg.RendezvousString
 
 	fmt.Printf("[*] Listening on: %s with port: %d\n", cfg.ListenHost, cfg.ListenPort)
