@@ -225,15 +225,14 @@ func getNetworkTopics() {
 	handler.RequestNetworkTopics(ctx)
 }
 
-func GetMessages() *string {
+func GetMessages() string {
 	textMessage := messageQueue.PopBack()
 	if textMessage != nil {
 		jsonData, err := json.Marshal(textMessage)
 		if err != nil {
-			return nil
+			return ""
 		}
-		str := string(jsonData)
-		return &str
+		return string(jsonData)
 	}
-	return nil
+	return ""
 }
