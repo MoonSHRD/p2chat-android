@@ -1,0 +1,4 @@
+RendezvousString: 'moonshard' # Unique string to identify group of nodes. Share this with your friends to let them connect with you
+ProtocolID: '/chat/1.1.0' # Sets a protocol id for stream headers
+ListenHost: '0.0.0.0' # The bootstrap node host listen address
+ListenPort: 4001 # Node listen port
