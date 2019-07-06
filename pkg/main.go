@@ -33,7 +33,7 @@ var globalCtx context.Context
 var globalCtxCancel context.CancelFunc
 
 var Pb *pubsub.PubSub
-var networkTopics mapset.Set
+var networkTopics = mapset.NewSet()
 var messageQueue utils.Queue
 var handler p2chat.Handler
 var serviceTopic string
