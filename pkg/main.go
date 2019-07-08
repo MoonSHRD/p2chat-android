@@ -193,6 +193,18 @@ func getNetworkTopics() {
 	handler.RequestNetworkTopics(ctx)
 }
 
+func GetTopics() []string {
+	return handler.GetTopics()
+}
+
+func GetPeers(topic string) []peer.ID {
+	return handler.GetPeers(topic)
+}
+
+func BlacklistPeer(pid peer.ID) {
+	handler.BlacklistPeer(pid)
+}
+
 func GetMessages() string {
 	textMessage := messageQueue.PopBack()
 	if textMessage != nil {
