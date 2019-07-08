@@ -20,13 +20,6 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
-type Config struct {
-	RendezvousString string // Unique string to identify group of nodes. Share this with your friends to let them connect with you
-	ProtocolID       string // Sets a protocol id for stream headers
-	ListenHost       string // The bootstrap node host listen address
-	ListenPort       int    // Node listen port
-}
-
 var myself host.Host
 
 var globalCtx context.Context
@@ -96,7 +89,15 @@ func PublishMessage(topic string, text string) {
 }
 
 func Start(rendezvous string, pid string, listenHost string, port int) {
-	cfg := GetConfig(&rendezvous, &pid, &listenHost, &port)
+	utils.SetConfig(&utils.Configuration{
+		RendezvousString: rendezvous,
+		ProtocolID:       pid,
+		ListenHost:       listenHost,
+		ListenPort:       port,
+	})
+
+	cfg := utils.GetConfig()
+
 	serviceTopic = cfg.RendezvousString
 
 	fmt.Printf("[*] Listening on: %s with port: %d\n", cfg.ListenHost, cfg.ListenPort)
@@ -136,7 +137,7 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 	myself = host
 
 	// Initialize pubsub object
-	pb, err := pubsub.NewFloodsubWithProtocols(context.Background(), host, []protocol.ID{protocol.ID(cfg.ProtocolID)}, pubsub.WithMessageSigning(false))
+	pb, err := pubsub.NewFloodsubWithProtocols(context.Background(), host, []protocol.ID{protocol.ID(cfg.ProtocolID)}, pubsub.WithMessageSigning(true), pubsub.WithStrictSignatureVerification(true))
 	if err != nil {
 		fmt.Println("Error occurred when create PubSub")
 		panic(err)
@@ -185,37 +186,6 @@ MainLoop:
 			}
 		}
 	}
-}
-
-// TODO: get this part to separate file (flags or whatever). all defaults parameters and their parsing should be done from separate file
-func GetConfig(rendezvous *string, pid *string, host *string, port *int) *Config {
-	c := &Config{}
-
-	if *rendezvous != "" && rendezvous != nil {
-		c.RendezvousString = *rendezvous
-	} else {
-		c.RendezvousString = "moonshard"
-	}
-
-	if *pid != "" && pid != nil {
-		c.ProtocolID = *pid
-	} else {
-		c.ProtocolID = "/chat/1.1.0"
-	}
-
-	if *host != "" && host != nil {
-		c.ListenHost = *host
-	} else {
-		c.ListenHost = "0.0.0.0"
-	}
-
-	if *port != 0 && port != nil && !(*port < 0) && !(*port > 65535) {
-		c.ListenPort = *port
-	} else {
-		c.ListenPort = 4001
-	}
-
-	return c
 }
 
 func getNetworkTopics() {

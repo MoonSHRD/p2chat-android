@@ -1,2 +1,4 @@
 /vendor
 /.vscode
+/pkg/p2mobile-sources.jar
+/pkg/p2mobile.aar
