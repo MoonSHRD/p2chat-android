@@ -137,7 +137,7 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 	myself = host
 
 	// Initialize pubsub object
-	pb, err := pubsub.NewFloodsubWithProtocols(context.Background(), host, []protocol.ID{protocol.ID(cfg.ProtocolID)}, pubsub.WithMessageSigning(false))
+	pb, err := pubsub.NewFloodsubWithProtocols(context.Background(), host, []protocol.ID{protocol.ID(cfg.ProtocolID)}, pubsub.WithMessageSigning(true), pubsub.WithStrictSignatureVerification(true))
 	if err != nil {
 		fmt.Println("Error occurred when create PubSub")
 		panic(err)
