@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-
 	"github.com/MoonSHRD/p2chat-android/pkg/utils"
 	"github.com/MoonSHRD/p2chat/api"
 	p2chat "github.com/MoonSHRD/p2chat/pkg"
@@ -18,6 +17,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/multiformats/go-multiaddr"
+	"strings"
 )
 
 var myself host.Host
@@ -193,16 +193,27 @@ func getNetworkTopics() {
 	handler.RequestNetworkTopics(ctx)
 }
 
-func GetTopics() []string {
-	return handler.GetTopics()
+func GetTopics() []byte {
+	topics := handler.GetTopics()
+	return convertStringSliceToBytes(topics)
 }
 
-func GetPeers(topic string) []peer.ID {
-	return handler.GetPeers(topic)
+func GetPeers(topic string) []byte {
+	var peersStrings []string
+
+	for _, peer := range handler.GetPeers(topic) {
+		peersStrings = append(peersStrings, string(peer))
+	}
+
+	return convertStringSliceToBytes(peersStrings)
 }
 
-func BlacklistPeer(pid peer.ID) {
-	handler.BlacklistPeer(pid)
+func convertStringSliceToBytes(pids []string) []byte {
+	return []byte(strings.Join(pids, " "))
+}
+
+func BlacklistPeer(pid string) {
+	handler.BlacklistPeer(peer.ID(pid))
 }
 
 func GetMessages() string {
