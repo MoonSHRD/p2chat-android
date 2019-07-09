@@ -2,8 +2,9 @@
 Port of P2Chat to Android (Java).
 
 ## Building
+**WARNING!** Build correctly occurs only in GOPATH.  
 ```bash
-$ git clone https://github.com/MoonSHRD/p2chat-android.git
-$ cd p2chat-android
+$ go get -u github.com/MoonSHRD/p2chat-android
+$ cd $GOPATH/github.com/MoonSHRD/p2chat-android
 $ make
 ```
