@@ -31,14 +31,21 @@ var networkTopics = mapset.NewSet()
 var messageQueue utils.Queue
 var handler p2chat.Handler
 var serviceTopic string
+var subscribedTopics map[string]chan struct{} // Pair "Topic-Channel", channel need for stopping listening
 
 // this function get new messages from subscribed topic
-func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub.Message) {
+func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub.Message, stopChannel chan struct{}) {
 	ctx := globalCtx
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-stopChannel:
+			{
+				close(incomingMessagesChan)
+				close(stopChannel)
+				return
+			}
 		default:
 		}
 		msg, err := subscription.Next(context.Background())
@@ -91,6 +98,7 @@ func PublishMessage(topic string, text string) {
 }
 
 func Start(rendezvous string, pid string, listenHost string, port int) {
+	subscribedTopics = make(map[string]chan struct{})
 	utils.SetConfig(&utils.Configuration{
 		RendezvousString: rendezvous,
 		ProtocolID:       pid,
@@ -151,16 +159,7 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 
 	peerChan := p2chat.InitMDNS(ctx, host, serviceTopic)
 
-	//Subscription should go BEFORE connections
-	// NOTE:  here we use Randezvous string as 'topic' by default .. topic != service tag
-	subscription, err := pb.Subscribe(serviceTopic)
-	if err != nil {
-		fmt.Println("Error occurred when subscribing to topic")
-		panic(err)
-	}
-
-	incomingMessages := make(chan pubsub.Message)
-	go readSub(subscription, incomingMessages)
+	SubscribeToTopic(serviceTopic)
 	go getNetworkTopics()
 
 MainLoop:
@@ -168,12 +167,6 @@ MainLoop:
 		select {
 		case <-ctx.Done():
 			break MainLoop
-		case msg := <-incomingMessages:
-			{
-				handler.HandleIncomingMessage(serviceTopic, msg, func(textMessage p2chat.TextMessage) {
-					messageQueue.PushFront(textMessage)
-				})
-			}
 		case newPeer := <-peerChan:
 			{
 				fmt.Println("\nFound peer:", newPeer, ", add address to peerstore")
@@ -228,4 +221,40 @@ func GetMessages() string {
 		return string(jsonData)
 	}
 	return ""
+}
+
+func SubscribeToTopic(topic string) {
+	incomingMessages := make(chan pubsub.Message)
+	subscription, err := Pb.Subscribe(topic)
+	if err != nil {
+		panic(err)
+	}
+	stopChan := make(chan struct{})
+	subscribedTopics[topic] = stopChan
+	go readSub(subscription, incomingMessages, stopChan)
+
+ListenLoop:
+	for {
+		select {
+		case <-globalCtx.Done():
+			break ListenLoop
+		case msg, ok := <-incomingMessages:
+			{
+				if ok {
+					handler.HandleIncomingMessage(topic, msg, func(textMessage p2chat.TextMessage) {
+						messageQueue.PushFront(textMessage)
+					})
+				} else {
+					break ListenLoop
+				}
+			}
+		}
+	}
+}
+
+func UnsubscribeFromTopic(topic string) {
+	if subscribedTopics[topic] != nil {
+		close(subscribedTopics[topic])
+		delete(subscribedTopics, topic)
+	}
 }
