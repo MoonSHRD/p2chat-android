@@ -1,10 +1,12 @@
-package pkg
+package p2mobile
 
 import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"github.com/MoonSHRD/p2chat-android/pkg/utils"
 	"github.com/MoonSHRD/p2chat/api"
 	p2chat "github.com/MoonSHRD/p2chat/pkg"
@@ -17,7 +19,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/multiformats/go-multiaddr"
-	"strings"
 )
 
 var myself host.Host
@@ -60,6 +61,7 @@ func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub
 			if addr == myself.ID() {
 				continue
 			}
+
 			incomingMessagesChan <- *msg
 		}
 
@@ -168,7 +170,7 @@ MainLoop:
 			break MainLoop
 		case msg := <-incomingMessages:
 			{
-				handler.HandleIncomingMessage(msg, func(textMessage p2chat.TextMessage) {
+				handler.HandleIncomingMessage(serviceTopic, msg, func(textMessage p2chat.TextMessage) {
 					messageQueue.PushFront(textMessage)
 				})
 			}
