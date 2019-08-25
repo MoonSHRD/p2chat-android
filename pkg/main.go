@@ -79,7 +79,7 @@ func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub
 func PublishMessage(topic string, text string) {
 	message := &api.BaseMessage{
 		Body: text,
-		Flag: api.FLAG_GENERIC_MESSAGE,
+		Flag: api.FlagGenericMessage,
 	}
 
 	sendData, err := json.Marshal(message)
