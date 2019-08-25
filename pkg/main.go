@@ -161,7 +161,7 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 	peerChan := p2chat.InitMDNS(ctx, host, serviceTopic)
 
 	SubscribeToTopic(serviceTopic)
-	go getNetworkTopics()
+	go GetNetworkTopics()
 
 MainLoop:
 	for {
@@ -184,7 +184,7 @@ MainLoop:
 	}
 }
 
-func getNetworkTopics() {
+func GetNetworkTopics() {
 	ctx := globalCtx
 	handler.RequestNetworkTopics(ctx)
 }
