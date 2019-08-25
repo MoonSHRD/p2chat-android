@@ -79,7 +79,7 @@ func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub
 func PublishMessage(topic string, text string) {
 	message := &api.BaseMessage{
 		Body: text,
-		Flag: api.FLAG_GENERIC_MESSAGE,
+		Flag: api.FlagGenericMessage,
 	}
 
 	sendData, err := json.Marshal(message)
@@ -142,7 +142,8 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 	// This function is called when a peer initiates a connection and starts a stream with this peer. (Handle incoming connections)
 	//	host.SetStreamHandler(protocol.ID(cfg.ProtocolID), handleStream)
 
-	fmt.Printf("\n[*] Your Multiaddress Is: /ip4/%s/tcp/%v/p2p/%s\n", cfg.ListenHost, cfg.ListenPort, host.ID().Pretty())
+	multiaddress := fmt.Sprintf("/ip4/%s/tcp/%v/p2p/%s\n", cfg.ListenHost, cfg.ListenPort, host.ID().Pretty())
+	fmt.Printf("\n[*] Your Multiaddress Is: %s", multiaddress)
 
 	myself = host
 
@@ -155,12 +156,12 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 
 	Pb = pb
 
-	handler = p2chat.NewHandler(pb, serviceTopic, &networkTopics)
+	handler = p2chat.NewHandler(pb, serviceTopic, multiaddress, &networkTopics)
 
 	peerChan := p2chat.InitMDNS(ctx, host, serviceTopic)
 
 	SubscribeToTopic(serviceTopic)
-	go getNetworkTopics()
+	go GetNetworkTopics()
 
 MainLoop:
 	for {
@@ -183,9 +184,14 @@ MainLoop:
 	}
 }
 
-func getNetworkTopics() {
+func GetNetworkTopics() {
 	ctx := globalCtx
 	handler.RequestNetworkTopics(ctx)
+}
+
+func GetPeersIdentity() {
+	ctx := globalCtx
+	handler.RequestPeersIdentity(ctx)
 }
 
 func GetTopics() []byte {
