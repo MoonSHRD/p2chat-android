@@ -189,6 +189,11 @@ func getNetworkTopics() {
 	handler.RequestNetworkTopics(ctx)
 }
 
+func GetPeersIdentity() {
+	ctx := globalCtx
+	handler.RequestPeersIdentity(ctx)
+}
+
 func GetTopics() []byte {
 	topics := handler.GetTopics()
 	return convertStringSliceToBytes(topics)
