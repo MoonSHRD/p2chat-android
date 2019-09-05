@@ -22,17 +22,17 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
-var myself host.Host
-
-var globalCtx context.Context
-var globalCtxCancel context.CancelFunc
-
-var Pb *pubsub.PubSub
-var networkTopics = mapset.NewSet()
-var messageQueue utils.Queue
-var handler p2chat.Handler
-var serviceTopic string
-var subscribedTopics map[string]chan struct{} // Pair "Topic-Channel", channel need for stopping listening
+var (
+	myself           host.Host
+	globalCtx        context.Context
+	globalCtxCancel  context.CancelFunc
+	Pb               *pubsub.PubSub
+	networkTopics    = mapset.NewSet()
+	messageQueue     utils.Queue
+	handler          p2chat.Handler
+	serviceTopic     string
+	subscribedTopics map[string]chan struct{} // Pair "Topic-Channel", channel need for stopping listening
+)
 
 // this function get new messages from subscribed topic
 func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub.Message, stopChannel chan struct{}) {
