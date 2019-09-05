@@ -184,6 +184,10 @@ MainLoop:
 	}
 }
 
+func SetMatrixID(mxID string) {
+	handler.SetMatrixID(mxID)
+}
+
 func GetNetworkTopics() {
 	ctx := globalCtx
 	handler.RequestNetworkTopics(ctx)
