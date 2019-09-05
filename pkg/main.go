@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/MoonSHRD/p2chat-android/pkg/utils"
@@ -50,7 +51,7 @@ func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub
 		}
 		msg, err := subscription.Next(context.Background())
 		if err != nil {
-			fmt.Println("Error reading from buffer")
+			log.Println("Error reading from buffer")
 			panic(err)
 		}
 
@@ -60,7 +61,7 @@ func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub
 		if string(msg.Data) != "\n" {
 			addr, err := peer.IDFromBytes(msg.From)
 			if err != nil {
-				fmt.Println("Error occurred when reading message From field...")
+				log.Println("Error occurred when reading message From field...")
 				panic(err)
 			}
 
@@ -84,7 +85,7 @@ func PublishMessage(topic string, text string) {
 
 	sendData, err := json.Marshal(message)
 	if err != nil {
-		fmt.Println("Error occurred when marshalling message object")
+		log.Println("Error occurred when marshalling message object")
 		return
 	}
 
@@ -92,7 +93,7 @@ func PublishMessage(topic string, text string) {
 	err = Pb.Publish(topic, sendData)
 	handler.PbMutex.Unlock()
 	if err != nil {
-		fmt.Println("Error occurred when publishing")
+		log.Println("Error occurred when publishing")
 		return
 	}
 }
@@ -110,7 +111,7 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 
 	serviceTopic = cfg.RendezvousString
 
-	fmt.Printf("[*] Listening on: %s with port: %d\n", cfg.ListenHost, cfg.ListenPort)
+	log.Printf("[*] Listening on: %s with port: %d\n", cfg.ListenHost, cfg.ListenPort)
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	globalCtx = ctx
@@ -143,14 +144,14 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 	//	host.SetStreamHandler(protocol.ID(cfg.ProtocolID), handleStream)
 
 	multiaddress := fmt.Sprintf("/ip4/%s/tcp/%v/p2p/%s\n", cfg.ListenHost, cfg.ListenPort, host.ID().Pretty())
-	fmt.Printf("\n[*] Your Multiaddress Is: %s", multiaddress)
+	log.Printf("\n[*] Your Multiaddress Is: %s", multiaddress)
 
 	myself = host
 
 	// Initialize pubsub object
 	pb, err := pubsub.NewFloodsubWithProtocols(context.Background(), host, []protocol.ID{protocol.ID(cfg.ProtocolID)}, pubsub.WithMessageSigning(true), pubsub.WithStrictSignatureVerification(true))
 	if err != nil {
-		fmt.Println("Error occurred when create PubSub")
+		log.Println("Error occurred when create PubSub")
 		panic(err)
 	}
 
@@ -173,15 +174,15 @@ MainLoop:
 			break MainLoop
 		case newPeer := <-peerChan:
 			{
-				fmt.Println("\nFound peer:", newPeer, ", add address to peerstore")
+				log.Println("\nFound peer:", newPeer, ", add address to peerstore")
 
 				// Adding peer addresses to local peerstore
 				host.Peerstore().AddAddr(newPeer.ID, newPeer.Addrs[0], peerstore.PermanentAddrTTL)
 				// Connect to the peer
 				if err := host.Connect(ctx, newPeer); err != nil {
-					fmt.Println("Connection failed:", err)
+					log.Println("Connection failed:", err)
 				}
-				fmt.Println("\nConnected to:", newPeer)
+				log.Println("\nConnected to:", newPeer)
 			}
 		}
 	}
