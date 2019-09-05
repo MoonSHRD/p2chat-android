@@ -158,7 +158,10 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 
 	handler = p2chat.NewHandler(pb, serviceTopic, multiaddress, &networkTopics)
 
-	peerChan := p2chat.InitMDNS(ctx, host, serviceTopic)
+	peerChan, err := p2chat.InitMDNS(ctx, host, serviceTopic)
+	if err != nil {
+		panic(err)
+	}
 
 	SubscribeToTopic(serviceTopic)
 	go GetNetworkTopics()
