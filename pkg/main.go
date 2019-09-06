@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MoonSHRD/p2chat-android/pkg/match"
 	"github.com/MoonSHRD/p2chat-android/pkg/utils"
 	"github.com/MoonSHRD/p2chat/api"
 	p2chat "github.com/MoonSHRD/p2chat/pkg"
@@ -192,6 +193,26 @@ MainLoop:
 			}
 		}
 	}
+}
+
+// GetMatchResponse collects a list of topics to which the peer is subscribed,
+// collects a list of peers from these topics,
+// requests to its matrixIDs and then marshals them to json
+func GetMatchResponse() []byte {
+	var response match.Response
+
+	topics := handler.GetTopics()
+	for _, topic := range topics {
+		response[topic] = handler.GetPeers(topic)
+	}
+
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		log.Println(err.Error())
+		return []byte("{}")
+	}
+
+	return jsonResponse
 }
 
 func SetMatrixID(mxID string) {
