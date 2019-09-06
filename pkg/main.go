@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/MoonSHRD/p2chat-android/pkg/utils"
 	"github.com/MoonSHRD/p2chat/api"
@@ -20,6 +21,10 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/multiformats/go-multiaddr"
+)
+
+const (
+	peerlistConnectionTimeout = time.Millisecond * 300
 )
 
 var (
@@ -183,6 +188,7 @@ MainLoop:
 					log.Println("Connection failed:", err)
 				}
 				log.Println("\nConnected to:", newPeer)
+				time.Sleep(peerlistConnectionTimeout)
 			}
 		}
 	}
