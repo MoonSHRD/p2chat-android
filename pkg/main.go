@@ -38,6 +38,7 @@ var (
 	handler          p2chat.Handler
 	serviceTopic     string
 	subscribedTopics map[string]chan struct{} // Pair "Topic-Channel", channel need for stopping listening
+	matches          match.Response
 )
 
 // this function get new messages from subscribed topic
@@ -195,10 +196,20 @@ MainLoop:
 	}
 }
 
+// GetJSONMatches returns the matches map within json format
+func GetJSONMatches() []byte {
+	jsonResponse, err := json.Marshal(matches)
+	if err != nil {
+		log.Println(err.Error())
+		return []byte("{}")
+	}
+	return jsonResponse
+}
+
 // GetMatchResponse collects a list of topics to which the peer is subscribed,
 // collects a list of peers from these topics,
 // requests to its matrixIDs and then marshals them to json
-func GetMatchResponse() []byte {
+func getMatchResponse() match.Response {
 	var response match.Response
 
 	// Send request for peers identity to fills up the identity map
@@ -210,13 +221,7 @@ func GetMatchResponse() []byte {
 		response[topic] = getMatrixIDsFromPeers(topicPeers)
 	}
 
-	jsonResponse, err := json.Marshal(response)
-	if err != nil {
-		log.Println(err.Error())
-		return []byte("{}")
-	}
-
-	return jsonResponse
+	return response
 }
 
 // Passes through all peer.ID and takes out their matrixID
