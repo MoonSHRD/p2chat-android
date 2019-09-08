@@ -5,8 +5,11 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
+	"time"
 
+	"github.com/MoonSHRD/p2chat-android/pkg/match"
 	"github.com/MoonSHRD/p2chat-android/pkg/utils"
 	"github.com/MoonSHRD/p2chat/api"
 	p2chat "github.com/MoonSHRD/p2chat/pkg"
@@ -21,17 +24,22 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
-var myself host.Host
+const (
+	peerlistConnectionTimeout = time.Millisecond * 300
+)
 
-var globalCtx context.Context
-var globalCtxCancel context.CancelFunc
-
-var Pb *pubsub.PubSub
-var networkTopics = mapset.NewSet()
-var messageQueue utils.Queue
-var handler p2chat.Handler
-var serviceTopic string
-var subscribedTopics map[string]chan struct{} // Pair "Topic-Channel", channel need for stopping listening
+var (
+	myself           host.Host
+	globalCtx        context.Context
+	globalCtxCancel  context.CancelFunc
+	Pb               *pubsub.PubSub
+	networkTopics    = mapset.NewSet()
+	messageQueue     utils.Queue
+	handler          p2chat.Handler
+	serviceTopic     string
+	subscribedTopics map[string]chan struct{} // Pair "Topic-Channel", channel need for stopping listening
+	matches          match.Response
+)
 
 // this function get new messages from subscribed topic
 func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub.Message, stopChannel chan struct{}) {
@@ -50,7 +58,7 @@ func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub
 		}
 		msg, err := subscription.Next(context.Background())
 		if err != nil {
-			fmt.Println("Error reading from buffer")
+			log.Println("Error reading from buffer")
 			panic(err)
 		}
 
@@ -60,7 +68,7 @@ func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub
 		if string(msg.Data) != "\n" {
 			addr, err := peer.IDFromBytes(msg.From)
 			if err != nil {
-				fmt.Println("Error occurred when reading message From field...")
+				log.Println("Error occurred when reading message From field...")
 				panic(err)
 			}
 
@@ -84,7 +92,7 @@ func PublishMessage(topic string, text string) {
 
 	sendData, err := json.Marshal(message)
 	if err != nil {
-		fmt.Println("Error occurred when marshalling message object")
+		log.Println("Error occurred when marshalling message object")
 		return
 	}
 
@@ -92,7 +100,7 @@ func PublishMessage(topic string, text string) {
 	err = Pb.Publish(topic, sendData)
 	handler.PbMutex.Unlock()
 	if err != nil {
-		fmt.Println("Error occurred when publishing")
+		log.Println("Error occurred when publishing")
 		return
 	}
 }
@@ -110,7 +118,7 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 
 	serviceTopic = cfg.RendezvousString
 
-	fmt.Printf("[*] Listening on: %s with port: %d\n", cfg.ListenHost, cfg.ListenPort)
+	log.Printf("[*] Listening on: %s with port: %d\n", cfg.ListenHost, cfg.ListenPort)
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	globalCtx = ctx
@@ -143,22 +151,25 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 	//	host.SetStreamHandler(protocol.ID(cfg.ProtocolID), handleStream)
 
 	multiaddress := fmt.Sprintf("/ip4/%s/tcp/%v/p2p/%s\n", cfg.ListenHost, cfg.ListenPort, host.ID().Pretty())
-	fmt.Printf("\n[*] Your Multiaddress Is: %s", multiaddress)
+	log.Printf("\n[*] Your Multiaddress Is: %s", multiaddress)
 
 	myself = host
 
 	// Initialize pubsub object
 	pb, err := pubsub.NewFloodsubWithProtocols(context.Background(), host, []protocol.ID{protocol.ID(cfg.ProtocolID)}, pubsub.WithMessageSigning(true), pubsub.WithStrictSignatureVerification(true))
 	if err != nil {
-		fmt.Println("Error occurred when create PubSub")
+		log.Println("Error occurred when create PubSub")
 		panic(err)
 	}
 
 	Pb = pb
 
-	handler = p2chat.NewHandler(pb, serviceTopic, multiaddress, &networkTopics)
+	handler = p2chat.NewHandler(pb, serviceTopic, host.ID(), &networkTopics)
 
-	peerChan := p2chat.InitMDNS(ctx, host, serviceTopic)
+	peerChan, err := p2chat.InitMDNS(ctx, host, serviceTopic)
+	if err != nil {
+		panic(err)
+	}
 
 	SubscribeToTopic(serviceTopic)
 	go GetNetworkTopics()
@@ -170,18 +181,65 @@ MainLoop:
 			break MainLoop
 		case newPeer := <-peerChan:
 			{
-				fmt.Println("\nFound peer:", newPeer, ", add address to peerstore")
+				log.Println("\nFound peer:", newPeer, ", add address to peerstore")
 
 				// Adding peer addresses to local peerstore
 				host.Peerstore().AddAddr(newPeer.ID, newPeer.Addrs[0], peerstore.PermanentAddrTTL)
 				// Connect to the peer
 				if err := host.Connect(ctx, newPeer); err != nil {
-					fmt.Println("Connection failed:", err)
+					log.Println("Connection failed:", err)
 				}
-				fmt.Println("\nConnected to:", newPeer)
+				log.Println("\nConnected to:", newPeer)
+				time.Sleep(peerlistConnectionTimeout)
+				matches = getMatchResponse()
 			}
 		}
 	}
+}
+
+// GetJSONMatches returns the matches map within json format
+func GetJSONMatches() []byte {
+	jsonResponse, err := json.Marshal(matches)
+	if err != nil {
+		log.Println(err.Error())
+		return []byte("{}")
+	}
+	return jsonResponse
+}
+
+// GetMatchResponse collects a list of topics to which the peer is subscribed,
+// collects a list of peers from these topics,
+// requests to its matrixIDs and then marshals them to json
+func getMatchResponse() match.Response {
+	var response match.Response
+
+	// Send request for peers identity to fills up the identity map
+	GetPeersIdentity()
+
+	topics := handler.GetTopics()
+	for _, topic := range topics {
+		topicPeers := handler.GetPeers(topic)
+		response[topic] = getMatrixIDsFromPeers(topicPeers)
+	}
+
+	return response
+}
+
+// Passes through all peer.ID and takes out their matrixID
+// from the identity matrix of handler
+func getMatrixIDsFromPeers(peerIDs []peer.ID) []string {
+	idenityMap := handler.GetIdentityMap()
+
+	var matrixIDs []string
+	for _, peerID := range peerIDs {
+		matrixIDs = append(matrixIDs, idenityMap[peerID])
+	}
+
+	return matrixIDs
+}
+
+func SetMatrixID(mxID string) {
+	handler.SetMatrixID(mxID)
 }
 
 func GetNetworkTopics() {
