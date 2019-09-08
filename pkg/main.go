@@ -191,6 +191,7 @@ MainLoop:
 				}
 				log.Println("\nConnected to:", newPeer)
 				time.Sleep(peerlistConnectionTimeout)
+				matches = getMatchResponse()
 			}
 		}
 	}
