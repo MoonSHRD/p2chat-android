@@ -201,9 +201,13 @@ MainLoop:
 func GetMatchResponse() []byte {
 	var response match.Response
 
+	// Send request for peers identity to fills up the identity map
+	GetPeersIdentity()
+
 	topics := handler.GetTopics()
 	for _, topic := range topics {
-		response[topic] = handler.GetPeers(topic)
+		topicPeers := handler.GetPeers(topic)
+		response[topic] = getMatrixIDsFromPeers(topicPeers)
 	}
 
 	jsonResponse, err := json.Marshal(response)
@@ -213,6 +217,19 @@ func GetMatchResponse() []byte {
 	}
 
 	return jsonResponse
+}
+
+// Passes through all peer.ID and takes out their matrixID
+// from the identity matrix of handler
+func getMatrixIDsFromPeers(peerIDs []peer.ID) []string {
+	idenityMap := handler.GetIdentityMap()
+
+	var matrixIDs []string
+	for _, peerID := range peerIDs {
+		matrixIDs = append(matrixIDs, idenityMap[peerID])
+	}
+
+	return matrixIDs
 }
 
 func SetMatrixID(mxID string) {
