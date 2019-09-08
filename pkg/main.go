@@ -163,7 +163,7 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 
 	Pb = pb
 
-	handler = p2chat.NewHandler(pb, serviceTopic, multiaddress, &networkTopics)
+	handler = p2chat.NewHandler(pb, serviceTopic, host.ID(), &networkTopics)
 
 	peerChan, err := p2chat.InitMDNS(ctx, host, serviceTopic)
 	if err != nil {
