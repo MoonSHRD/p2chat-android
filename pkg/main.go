@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/MoonSHRD/p2chat-android/pkg/match"
@@ -198,13 +197,8 @@ MainLoop:
 }
 
 // GetJSONMatches returns the matches map within json format
-func GetJSONMatches() []byte {
-	jsonResponse, err := json.Marshal(matches)
-	if err != nil {
-		log.Println(err.Error())
-		return []byte("{}")
-	}
-	return jsonResponse
+func GetJSONMatches() string {
+	return objectToJson(matches)
 }
 
 // GetMatchResponse collects a list of topics to which the peer is subscribed,
@@ -252,23 +246,21 @@ func GetPeersIdentity() {
 	handler.RequestPeersIdentity(ctx)
 }
 
-func GetTopics() []byte {
+// GetTopics is method for getting subcribed topics of current peer
+func GetTopics() string {
 	topics := handler.GetTopics()
-	return convertStringSliceToBytes(topics)
+	return objectToJson(topics)
 }
 
-func GetPeers(topic string) []byte {
+// GetPeers is method for getting peer ids by topic
+func GetPeers(topic string) string {
 	var peersStrings []string
 
 	for _, peer := range handler.GetPeers(topic) {
 		peersStrings = append(peersStrings, string(peer))
 	}
 
-	return convertStringSliceToBytes(peersStrings)
-}
-
-func convertStringSliceToBytes(pids []string) []byte {
-	return []byte(strings.Join(pids, " "))
+	return objectToJson(peersStrings)
 }
 
 func BlacklistPeer(pid string) {
@@ -278,11 +270,7 @@ func BlacklistPeer(pid string) {
 func GetMessages() string {
 	textMessage := messageQueue.PopBack()
 	if textMessage != nil {
-		jsonData, err := json.Marshal(textMessage)
-		if err != nil {
-			return ""
-		}
-		return string(jsonData)
+		return objectToJson(textMessage)
 	}
 	return ""
 }
@@ -314,6 +302,15 @@ ListenLoop:
 			}
 		}
 	}
+}
+
+func objectToJson(v interface{}) string {
+	json, err := json.Marshal(v)
+	if err != nil {
+		log.Println(err.Error())
+		return ""
+	}
+	return string(json)
 }
 
 func UnsubscribeFromTopic(topic string) {
