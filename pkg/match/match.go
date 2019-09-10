@@ -17,19 +17,19 @@ type MatchProcessor struct {
 }
 
 // GetAllMatches returns the whole matches map within json format
-func (mc *MatchProcessor) GetAllMatches() string {
-	return utils.ObjectToJSON(mc.mathes)
+func (mp *MatchProcessor) GetAllMatches() string {
+	return utils.ObjectToJSON(mp.mathes)
 }
 
 // GetNewMatch returns new match from the matches-queue
-func (mc *MatchProcessor) GetNewMatch() string {
-	return utils.ObjectToJSON(mc.newMatchesQueue.PopBack())
+func (mp *MatchProcessor) GetNewMatch() string {
+	return utils.ObjectToJSON(mp.newMatchesQueue.PopBack())
 }
 
 // AddNewMatch pushes new match [topic]=>[newMatrixID] to the matches-queue and map
-func (mc *MatchProcessor) AddNewMatch(matrixID string, topics []string) {
+func (mp *MatchProcessor) AddNewMatch(matrixID string, topics []string) {
 	for _, topic := range topics {
-		mc.mathes[topic] = append(mc.mathes[topic], matrixID)
+		mp.mathes[topic] = append(mp.mathes[topic], matrixID)
 	}
-	mc.newMatchesQueue.PushBack(Response{matrixID: topics})
+	mp.newMatchesQueue.PushBack(Response{matrixID: topics})
 }
