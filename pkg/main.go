@@ -198,7 +198,7 @@ MainLoop:
 
 // GetJSONMatches returns the matches map within json format
 func GetJSONMatches() string {
-	return objectToJson(matches)
+	return utils.ObjectToJSON(matches)
 }
 
 // GetMatchResponse collects a list of topics to which the peer is subscribed,
@@ -249,7 +249,7 @@ func GetPeersIdentity() {
 // GetTopics is method for getting subcribed topics of current peer
 func GetTopics() string {
 	topics := handler.GetTopics()
-	return objectToJson(topics)
+	return utils.ObjectToJSON(topics)
 }
 
 // GetPeers is method for getting peer ids by topic
@@ -260,7 +260,7 @@ func GetPeers(topic string) string {
 		peersStrings = append(peersStrings, string(peer))
 	}
 
-	return objectToJson(peersStrings)
+	return utils.ObjectToJSON(peersStrings)
 }
 
 func BlacklistPeer(pid string) {
@@ -270,7 +270,7 @@ func BlacklistPeer(pid string) {
 func GetMessages() string {
 	textMessage := messageQueue.PopBack()
 	if textMessage != nil {
-		return objectToJson(textMessage)
+		return utils.ObjectToJSON(textMessage)
 	}
 	return ""
 }
@@ -302,15 +302,6 @@ ListenLoop:
 			}
 		}
 	}
-}
-
-func objectToJson(v interface{}) string {
-	json, err := json.Marshal(v)
-	if err != nil {
-		log.Println(err.Error())
-		return ""
-	}
-	return string(json)
 }
 
 func UnsubscribeFromTopic(topic string) {
