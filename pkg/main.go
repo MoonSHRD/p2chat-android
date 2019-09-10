@@ -24,19 +24,22 @@ import (
 )
 
 const (
+	// Defines the timeout when new peer was found
 	peerlistConnectionTimeout = time.Millisecond * 300
 )
 
 var (
-	myself           host.Host
-	globalCtx        context.Context
-	globalCtxCancel  context.CancelFunc
-	Pb               *pubsub.PubSub
-	networkTopics    = mapset.NewSet()
-	messageQueue     utils.Queue
-	handler          p2chat.Handler
-	serviceTopic     string
-	subscribedTopics map[string]chan struct{} // Pair "Topic-Channel", channel need for stopping listening
+	myself          host.Host
+	globalCtx       context.Context
+	globalCtxCancel context.CancelFunc
+	// Pb is main object for accessing the pubsub system
+	Pb            *pubsub.PubSub
+	networkTopics = mapset.NewSet()
+	messageQueue  utils.Queue
+	handler       p2chat.Handler
+	serviceTopic  string
+	// Pair "Topic-Channel", channel need for stopping listening
+	subscribedTopics map[string]chan struct{}
 	matches          match.Response
 )
 
@@ -82,7 +85,7 @@ func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub
 	}
 }
 
-// Publish message into some topic
+// PublishMessage publishes message into some topic
 func PublishMessage(topic string, text string) {
 	message := &api.BaseMessage{
 		Body: text,
@@ -104,6 +107,7 @@ func PublishMessage(topic string, text string) {
 	}
 }
 
+// Start launches main p2chat process
 func Start(rendezvous string, pid string, listenHost string, port int) {
 	subscribedTopics = make(map[string]chan struct{})
 	utils.SetConfig(&utils.Configuration{
@@ -232,15 +236,18 @@ func getMatrixIDsFromPeers(peerIDs []peer.ID) []string {
 	return matrixIDs
 }
 
+// SetMatrixID sets the matrixID of a current peer
 func SetMatrixID(mxID string) {
 	handler.SetMatrixID(mxID)
 }
 
+// GetNetworkTopics requests network topics from other peers
 func GetNetworkTopics() {
 	ctx := globalCtx
 	handler.RequestNetworkTopics(ctx)
 }
 
+// GetPeersIdentity requests MatrixID from other peers
 func GetPeersIdentity() {
 	ctx := globalCtx
 	handler.RequestPeersIdentity(ctx)
@@ -263,10 +270,12 @@ func GetPeers(topic string) string {
 	return utils.ObjectToJSON(peersStrings)
 }
 
+// BlacklistPeer blacklists peer by its peer.ID
 func BlacklistPeer(pid string) {
 	handler.BlacklistPeer(peer.ID(pid))
 }
 
+// GetMessages returns json message string from the message-queue
 func GetMessages() string {
 	textMessage := messageQueue.PopBack()
 	if textMessage != nil {
@@ -275,6 +284,7 @@ func GetMessages() string {
 	return ""
 }
 
+// SubscribeToTopic allows to subscribe to specific topic
 func SubscribeToTopic(topic string) {
 	incomingMessages := make(chan pubsub.Message)
 	subscription, err := Pb.Subscribe(topic)
@@ -304,6 +314,7 @@ ListenLoop:
 	}
 }
 
+// UnsubscribeFromTopic allows to unsubscribe from specific topic
 func UnsubscribeFromTopic(topic string) {
 	if subscribedTopics[topic] != nil {
 		close(subscribedTopics[topic])
