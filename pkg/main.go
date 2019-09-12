@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/MoonSHRD/p2chat-android/pkg/match"
@@ -25,20 +24,26 @@ import (
 )
 
 const (
+	// Defines the timeout when new peer was found
 	peerlistConnectionTimeout = time.Millisecond * 300
 )
 
 var (
-	myself           host.Host
-	globalCtx        context.Context
-	globalCtxCancel  context.CancelFunc
-	Pb               *pubsub.PubSub
-	networkTopics    = mapset.NewSet()
-	messageQueue     utils.Queue
-	handler          p2chat.Handler
-	serviceTopic     string
-	subscribedTopics map[string]chan struct{} // Pair "Topic-Channel", channel need for stopping listening
-	matches          match.Response
+	// Pb is main object for accessing the pubsub system
+	Pb *pubsub.PubSub
+	// Match is object to work with matches.
+	// Get all matches, get new match, add new match, etc.
+	Match match.MatchProcessor
+
+	myself          host.Host
+	globalCtx       context.Context
+	globalCtxCancel context.CancelFunc
+	networkTopics   = mapset.NewSet()
+	messageQueue    utils.Queue
+	handler         p2chat.Handler
+	serviceTopic    string
+	// Pair "Topic-Channel", channel need for stopping listening
+	subscribedTopics map[string]chan struct{}
 )
 
 // this function get new messages from subscribed topic
@@ -83,7 +88,7 @@ func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub
 	}
 }
 
-// Publish message into some topic
+// PublishMessage publishes message into some topic
 func PublishMessage(topic string, text string) {
 	message := &api.BaseMessage{
 		Body: text,
@@ -105,6 +110,7 @@ func PublishMessage(topic string, text string) {
 	}
 }
 
+// Start launches main p2chat process
 func Start(rendezvous string, pid string, listenHost string, port int) {
 	subscribedTopics = make(map[string]chan struct{})
 	utils.SetConfig(&utils.Configuration{
@@ -190,103 +196,96 @@ MainLoop:
 					log.Println("Connection failed:", err)
 				}
 				log.Println("\nConnected to:", newPeer)
+
 				time.Sleep(peerlistConnectionTimeout)
-				matches = getMatchResponse()
+				getMatchResponse(newPeer.ID)
 			}
 		}
 	}
 }
 
-// GetJSONMatches returns the matches map within json format
-func GetJSONMatches() []byte {
-	jsonResponse, err := json.Marshal(matches)
-	if err != nil {
-		log.Println(err.Error())
-		return []byte("{}")
-	}
-	return jsonResponse
-}
-
 // GetMatchResponse collects a list of topics to which the peer is subscribed,
 // collects a list of peers from these topics,
 // requests to its matrixIDs and then marshals them to json
-func getMatchResponse() match.Response {
-	var response match.Response
-
+func getMatchResponse(newPeerID peer.ID) {
 	// Send request for peers identity to fills up the identity map
 	GetPeersIdentity()
 
+	var peerTopics []string
+	peerMatrixID := getMatrixIDFromPeerID(newPeerID)
+
+	// Get topics this node is subscribed to check new node inclusiveness to them
 	topics := handler.GetTopics()
 	for _, topic := range topics {
+		// Get peer list of subscribed peers to specific topic
 		topicPeers := handler.GetPeers(topic)
-		response[topic] = getMatrixIDsFromPeers(topicPeers)
+
+		for _, peerID := range topicPeers {
+			// Check if new peer is included to the peer list of the specific topic
+			if peerID == newPeerID {
+				peerTopics = append(peerTopics, topic)
+			}
+		}
 	}
 
-	return response
+	Match.AddNewMatch(peerMatrixID, peerTopics)
 }
 
-// Passes through all peer.ID and takes out their matrixID
-// from the identity matrix of handler
-func getMatrixIDsFromPeers(peerIDs []peer.ID) []string {
+// Returns the peer matrixID from identity map by its peerID
+func getMatrixIDFromPeerID(peerID peer.ID) string {
 	idenityMap := handler.GetIdentityMap()
-
-	var matrixIDs []string
-	for _, peerID := range peerIDs {
-		matrixIDs = append(matrixIDs, idenityMap[peerID])
-	}
-
-	return matrixIDs
+	return idenityMap[peerID]
 }
 
+// SetMatrixID sets the matrixID of a current peer
 func SetMatrixID(mxID string) {
 	handler.SetMatrixID(mxID)
 }
 
+// GetNetworkTopics requests network topics from other peers
 func GetNetworkTopics() {
 	ctx := globalCtx
 	handler.RequestNetworkTopics(ctx)
 }
 
+// GetPeersIdentity requests MatrixID from other peers
 func GetPeersIdentity() {
 	ctx := globalCtx
 	handler.RequestPeersIdentity(ctx)
 }
 
-func GetTopics() []byte {
+// GetTopics is method for getting subcribed topics of current peer
+func GetTopics() string {
 	topics := handler.GetTopics()
-	return convertStringSliceToBytes(topics)
+	return utils.ObjectToJSON(topics)
 }
 
-func GetPeers(topic string) []byte {
+// GetPeers is method for getting peer ids by topic
+func GetPeers(topic string) string {
 	var peersStrings []string
 
 	for _, peer := range handler.GetPeers(topic) {
 		peersStrings = append(peersStrings, string(peer))
 	}
 
-	return convertStringSliceToBytes(peersStrings)
+	return utils.ObjectToJSON(peersStrings)
 }
 
-func convertStringSliceToBytes(pids []string) []byte {
-	return []byte(strings.Join(pids, " "))
-}
-
+// BlacklistPeer blacklists peer by its peer.ID
 func BlacklistPeer(pid string) {
 	handler.BlacklistPeer(peer.ID(pid))
 }
 
+// GetMessages returns json message string from the message-queue
 func GetMessages() string {
 	textMessage := messageQueue.PopBack()
 	if textMessage != nil {
-		jsonData, err := json.Marshal(textMessage)
-		if err != nil {
-			return ""
-		}
-		return string(jsonData)
+		return utils.ObjectToJSON(textMessage)
 	}
 	return ""
 }
 
+// SubscribeToTopic allows to subscribe to specific topic
 func SubscribeToTopic(topic string) {
 	incomingMessages := make(chan pubsub.Message)
 	subscription, err := Pb.Subscribe(topic)
@@ -316,6 +315,7 @@ ListenLoop:
 	}
 }
 
+// UnsubscribeFromTopic allows to unsubscribe from specific topic
 func UnsubscribeFromTopic(topic string) {
 	if subscribedTopics[topic] != nil {
 		close(subscribedTopics[topic])
