@@ -295,6 +295,10 @@ func SubscribeToTopic(topic string) {
 		log.Println("Manual subscription to service topic is not allowed!")
 		return
 	}
+	if _, ok := subscribedTopics[topic]; ok {
+		log.Println("You are already subscribed to the topic!")
+		return
+	}
 	incomingMessages := make(chan pubsub.Message)
 	subscription, err := Pb.Subscribe(topic)
 	if err != nil {
