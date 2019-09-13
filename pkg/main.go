@@ -57,6 +57,7 @@ func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub
 			{
 				close(incomingMessagesChan)
 				close(stopChannel)
+				subscription.Cancel()
 				return
 			}
 		default:
@@ -256,7 +257,10 @@ func GetPeersIdentity() {
 
 // GetTopics is method for getting subcribed topics of current peer
 func GetTopics() string {
-	topics := handler.GetTopics()
+	var topics []string
+	for key := range subscribedTopics {
+		topics = append(topics, key)
+	}
 	return utils.ObjectToJSON(topics)
 }
 
@@ -287,6 +291,10 @@ func GetMessages() string {
 
 // SubscribeToTopic allows to subscribe to specific topic
 func SubscribeToTopic(topic string) {
+	if topic == serviceTopic {
+		log.Println("Manual subscription to service topic is not allowed!")
+		return
+	}
 	incomingMessages := make(chan pubsub.Message)
 	subscription, err := Pb.Subscribe(topic)
 	if err != nil {
