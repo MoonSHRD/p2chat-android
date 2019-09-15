@@ -178,7 +178,7 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 		panic(err)
 	}
 
-	SubscribeToTopic(serviceTopic)
+	subscribeToTopic(serviceTopic)
 	go GetNetworkTopics()
 
 MainLoop:
@@ -299,6 +299,11 @@ func SubscribeToTopic(topic string) {
 		log.Println("You are already subscribed to the topic!")
 		return
 	}
+
+	subscribeToTopic(topic)
+}
+
+func subscribeToTopic(topic string) {
 	incomingMessages := make(chan pubsub.Message)
 	subscription, err := Pb.Subscribe(topic)
 	if err != nil {
