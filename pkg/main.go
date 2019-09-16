@@ -42,21 +42,18 @@ var (
 	messageQueue    utils.Queue
 	handler         p2chat.Handler
 	serviceTopic    string
-	// Pair "Topic-Channel", channel need for stopping listening
-	subscribedTopics map[string]chan struct{}
+
+	// Pair "Topic-CancelFunc", function for stopping listening to topic and unsubscribing
+	subscribedTopics map[string]context.CancelFunc
 )
 
 // this function get new messages from subscribed topic
-func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub.Message, stopChannel chan struct{}) {
-	ctx := globalCtx
+func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub.Message, ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			return
-		case <-stopChannel:
 			{
 				close(incomingMessagesChan)
-				close(stopChannel)
 				subscription.Cancel()
 				return
 			}
@@ -113,7 +110,7 @@ func PublishMessage(topic string, text string) {
 
 // Start launches main p2chat process
 func Start(rendezvous string, pid string, listenHost string, port int) {
-	subscribedTopics = make(map[string]chan struct{})
+	subscribedTopics = make(map[string]context.CancelFunc)
 	utils.SetConfig(&utils.Configuration{
 		RendezvousString: rendezvous,
 		ProtocolID:       pid,
@@ -289,7 +286,7 @@ func GetMessages() string {
 	return ""
 }
 
-// SubscribeToTopic allows to subscribe to specific topic
+// SubscribeToTopic allows to subscribe to specific topic. This is public API.
 func SubscribeToTopic(topic string) {
 	if topic == serviceTopic {
 		log.Println("Manual subscription to service topic is not allowed!")
@@ -309,9 +306,9 @@ func subscribeToTopic(topic string) {
 	if err != nil {
 		panic(err)
 	}
-	stopChan := make(chan struct{})
-	subscribedTopics[topic] = stopChan
-	go readSub(subscription, incomingMessages, stopChan)
+	ctx, cancel := context.WithCancel(context.Background())
+	subscribedTopics[topic] = cancel
+	go readSub(subscription, incomingMessages, ctx)
 
 ListenLoop:
 	for {
@@ -335,7 +332,7 @@ ListenLoop:
 // UnsubscribeFromTopic allows to unsubscribe from specific topic
 func UnsubscribeFromTopic(topic string) {
 	if subscribedTopics[topic] != nil {
-		close(subscribedTopics[topic])
+		subscribedTopics[topic]() // cancel context
 		delete(subscribedTopics, topic)
 	}
 }
