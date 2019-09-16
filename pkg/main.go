@@ -31,9 +31,10 @@ const (
 var (
 	// Pb is main object for accessing the pubsub system
 	Pb *pubsub.PubSub
-	// Match is object to work with matches.
+
+	// matchProcessor is object to work with matches.
 	// Get all matches, get new match, add new match, etc.
-	Match match.MatchProcessor
+	matchProcessor match.MatchProcessor
 
 	myself          host.Host
 	globalCtx       context.Context
@@ -226,7 +227,7 @@ func getMatchResponse(newPeerID peer.ID) {
 		}
 	}
 
-	Match.AddNewMatch(peerMatrixID, peerTopics)
+	matchProcessor.AddNewMatch(peerMatrixID, peerTopics)
 }
 
 // Returns the peer matrixID from identity map by its peerID
@@ -335,4 +336,12 @@ func UnsubscribeFromTopic(topic string) {
 		subscribedTopics[topic]() // cancel context
 		delete(subscribedTopics, topic)
 	}
+}
+
+func GetAllMatches() string {
+	return matchProcessor.GetAllMatches()
+}
+
+func GetNewMatch() string {
+	return matchProcessor.GetNewMatch()
 }

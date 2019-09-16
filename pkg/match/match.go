@@ -16,14 +16,23 @@ type MatchProcessor struct {
 	newMatchesQueue utils.Queue
 }
 
-// GetAllMatches returns the whole matches map within json format
+// GetAllMatches returns the whole matches map within json format (or empty string, if we haven't any matches)
 func (mp *MatchProcessor) GetAllMatches() string {
-	return utils.ObjectToJSON(mp.mathes)
+	if len(mp.mathes) != 0 {
+		return utils.ObjectToJSON(mp.mathes)
+	}
+	return ""
 }
 
 // GetNewMatch returns new match from the matches-queue
 func (mp *MatchProcessor) GetNewMatch() string {
-	return utils.ObjectToJSON(mp.newMatchesQueue.PopBack())
+	newMatch := mp.newMatchesQueue.PopBack()
+	// if we have new match, then jsonify it
+	if newMatch != nil {
+		return utils.ObjectToJSON(newMatch)
+	}
+	// else just return empty string
+	return ""
 }
 
 // AddNewMatch pushes new match [topic]=>[newMatrixID] to the matches-queue and map
