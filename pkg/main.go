@@ -31,9 +31,10 @@ const (
 var (
 	// Pb is main object for accessing the pubsub system
 	Pb *pubsub.PubSub
-	// Match is object to work with matches.
+
+	// matchProcessor is object to work with matches.
 	// Get all matches, get new match, add new match, etc.
-	Match match.MatchProcessor
+	matchProcessor match.MatchProcessor
 
 	myself          host.Host
 	globalCtx       context.Context
@@ -42,21 +43,18 @@ var (
 	messageQueue    utils.Queue
 	handler         p2chat.Handler
 	serviceTopic    string
-	// Pair "Topic-Channel", channel need for stopping listening
-	subscribedTopics map[string]chan struct{}
+
+	// Pair "Topic-CancelFunc", function for stopping listening to topic and unsubscribing
+	subscribedTopics map[string]context.CancelFunc
 )
 
 // this function get new messages from subscribed topic
-func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub.Message, stopChannel chan struct{}) {
-	ctx := globalCtx
+func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub.Message, ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			return
-		case <-stopChannel:
 			{
 				close(incomingMessagesChan)
-				close(stopChannel)
 				subscription.Cancel()
 				return
 			}
@@ -113,7 +111,7 @@ func PublishMessage(topic string, text string) {
 
 // Start launches main p2chat process
 func Start(rendezvous string, pid string, listenHost string, port int) {
-	subscribedTopics = make(map[string]chan struct{})
+	subscribedTopics = make(map[string]context.CancelFunc)
 	utils.SetConfig(&utils.Configuration{
 		RendezvousString: rendezvous,
 		ProtocolID:       pid,
@@ -178,7 +176,7 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 		panic(err)
 	}
 
-	SubscribeToTopic(serviceTopic)
+	subscribeToTopic(serviceTopic)
 	go GetNetworkTopics()
 
 MainLoop:
@@ -229,7 +227,7 @@ func getMatchResponse(newPeerID peer.ID) {
 		}
 	}
 
-	Match.AddNewMatch(peerMatrixID, peerTopics)
+	matchProcessor.AddNewMatch(peerMatrixID, peerTopics)
 }
 
 // Returns the peer matrixID from identity map by its peerID
@@ -289,7 +287,7 @@ func GetMessages() string {
 	return ""
 }
 
-// SubscribeToTopic allows to subscribe to specific topic
+// SubscribeToTopic allows to subscribe to specific topic. This is public API.
 func SubscribeToTopic(topic string) {
 	if topic == serviceTopic {
 		log.Println("Manual subscription to service topic is not allowed!")
@@ -299,14 +297,19 @@ func SubscribeToTopic(topic string) {
 		log.Println("You are already subscribed to the topic!")
 		return
 	}
+
+	subscribeToTopic(topic)
+}
+
+func subscribeToTopic(topic string) {
 	incomingMessages := make(chan pubsub.Message)
 	subscription, err := Pb.Subscribe(topic)
 	if err != nil {
 		panic(err)
 	}
-	stopChan := make(chan struct{})
-	subscribedTopics[topic] = stopChan
-	go readSub(subscription, incomingMessages, stopChan)
+	ctx, cancel := context.WithCancel(context.Background())
+	subscribedTopics[topic] = cancel
+	go readSub(subscription, incomingMessages, ctx)
 
 ListenLoop:
 	for {
@@ -330,7 +333,15 @@ ListenLoop:
 // UnsubscribeFromTopic allows to unsubscribe from specific topic
 func UnsubscribeFromTopic(topic string) {
 	if subscribedTopics[topic] != nil {
-		close(subscribedTopics[topic])
+		subscribedTopics[topic]() // cancel context
 		delete(subscribedTopics, topic)
 	}
+}
+
+func GetAllMatches() string {
+	return matchProcessor.GetAllMatches()
+}
+
+func GetNewMatch() string {
+	return matchProcessor.GetNewMatch()
 }
