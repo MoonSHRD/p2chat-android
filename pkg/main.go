@@ -253,11 +253,13 @@ func GetPeersIdentity() {
 	handler.RequestPeersIdentity(ctx)
 }
 
-// GetTopics is method for getting subcribed topics of current peer
+// GetTopics is method for getting subcribed user topics of current peer
 func GetTopics() string {
 	var topics []string
 	for key := range subscribedTopics {
-		topics = append(topics, key)
+		if key != serviceTopic {
+			topics = append(topics, key)
+		}
 	}
 	return utils.ObjectToJSON(topics)
 }
