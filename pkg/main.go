@@ -253,11 +253,13 @@ func GetPeersIdentity() {
 	handler.RequestPeersIdentity(ctx)
 }
 
-// GetTopics is method for getting subcribed topics of current peer
+// GetTopics is method for getting subcribed user topics of current peer
 func GetTopics() string {
 	var topics []string
 	for key := range subscribedTopics {
-		topics = append(topics, key)
+		if key != serviceTopic {
+			topics = append(topics, key)
+		}
 	}
 	return utils.ObjectToJSON(topics)
 }
@@ -311,23 +313,26 @@ func subscribeToTopic(topic string) {
 	subscribedTopics[topic] = cancel
 	go readSub(subscription, incomingMessages, ctx)
 
-ListenLoop:
-	for {
-		select {
-		case <-globalCtx.Done():
-			break ListenLoop
-		case msg, ok := <-incomingMessages:
-			{
-				if ok {
-					handler.HandleIncomingMessage(topic, msg, func(textMessage p2chat.TextMessage) {
-						messageQueue.PushFront(textMessage)
-					})
-				} else {
-					break ListenLoop
+	go func() {
+	ListenLoop:
+		for {
+			select {
+			case <-ctx.Done():
+				break ListenLoop
+			case msg, ok := <-incomingMessages:
+				{
+					if ok {
+						handler.HandleIncomingMessage(topic, msg, func(textMessage p2chat.TextMessage) {
+							messageQueue.PushFront(textMessage)
+						})
+					} else {
+						break ListenLoop
+					}
 				}
 			}
 		}
-	}
+		return
+	}()
 }
 
 // UnsubscribeFromTopic allows to unsubscribe from specific topic
