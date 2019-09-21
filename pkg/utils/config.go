@@ -12,9 +12,9 @@ type Configuration struct {
 // Config contains the default values
 var config = Configuration{
 	RendezvousString: "moonshard",
-	ProtocolID: "/chat/1.1.0",
-	ListenHost: "0.0.0.0",
-	ListenPort: 4001,
+	ProtocolID:       "/chat/1.1.0",
+	ListenHost:       "0.0.0.0",
+	ListenPort:       4001,
 }
 
 func GetConfig() *Configuration {
@@ -22,7 +22,6 @@ func GetConfig() *Configuration {
 }
 
 func SetConfig(newConfig *Configuration) {
-
 	if newConfig.RendezvousString != "" {
 		config.RendezvousString = newConfig.RendezvousString
 	}
@@ -35,7 +34,7 @@ func SetConfig(newConfig *Configuration) {
 		config.ListenHost = newConfig.ListenHost
 	}
 
-	if newConfig.ListenPort != 0 && (newConfig.ListenPort < 0 && newConfig.ListenPort > maxPort) {
+	if !(newConfig.ListenPort < 1 && newConfig.ListenPort > maxPort) {
 		config.ListenPort = newConfig.ListenPort
 	}
 }

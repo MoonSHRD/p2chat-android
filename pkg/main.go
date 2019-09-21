@@ -214,7 +214,7 @@ func getMatchResponse(newPeerID peer.ID) {
 	peerMatrixID := getMatrixIDFromPeerID(newPeerID)
 
 	// Get topics this node is subscribed to check new node inclusiveness to them
-	topics := handler.GetTopics()
+	topics := getTopics()
 	for _, topic := range topics {
 		// Get peer list of subscribed peers to specific topic
 		topicPeers := handler.GetPeers(topic)
@@ -253,15 +253,21 @@ func GetPeersIdentity() {
 	handler.RequestPeersIdentity(ctx)
 }
 
-// GetTopics is method for getting subcribed user topics of current peer
-func GetTopics() string {
+// Helper for getting topics
+func getTopics() []string {
 	var topics []string
 	for key := range subscribedTopics {
 		if key != serviceTopic {
 			topics = append(topics, key)
 		}
 	}
-	return utils.ObjectToJSON(topics)
+
+	return topics
+}
+
+// GetTopics is method for getting subcribed user topics of current peer
+func GetTopics() string {
+	return utils.ObjectToJSON(getTopics())
 }
 
 // GetPeers is method for getting peer ids by topic
