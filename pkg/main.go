@@ -356,3 +356,8 @@ func GetAllMatches() string {
 func GetNewMatch() string {
 	return matchProcessor.GetNewMatch()
 }
+
+// GetMultiaddressID returns peer.ID from multiaddress
+func GetMultiaddressID() string {
+	return myself.ID().String()
+}
