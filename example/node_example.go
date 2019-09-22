@@ -67,7 +67,7 @@ func parseFlags() *nodeConfig {
 	c := &nodeConfig{}
 
 	flag.StringVar(&c.matrixID, "matrixID", "0", "The bootstrap node wrapped_host listen address\n")
-	flag.Var(&c.topics, "topics", "Topics for subscription")
+	flag.Var(&c.topics, "topic", "Topic for subscription (you can specify multiple topics, for example, -topic one -topic two")
 	flag.IntVar(&c.listenPort, "port", 0, "Node listen port")
 
 	flag.Parse()
