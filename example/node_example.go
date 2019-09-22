@@ -59,6 +59,7 @@ func publishTestMessageToAllTopics(cfg nodeConfig) {
 		for _, topic := range cfg.topics {
 			p2mobile.PublishMessage(topic, "Test!")
 		}
+		time.Sleep(2 * time.Second)
 	}
 }
 
