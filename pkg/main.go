@@ -179,28 +179,30 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 	subscribeToTopic(serviceTopic)
 	go GetNetworkTopics()
 
-MainLoop:
-	for {
-		select {
-		case <-ctx.Done():
-			break MainLoop
-		case newPeer := <-peerChan:
-			{
-				log.Println("\nFound peer:", newPeer, ", add address to peerstore")
+	go func() {
+	MainLoop:
+		for {
+			select {
+			case <-ctx.Done():
+				break MainLoop
+			case newPeer := <-peerChan:
+				{
+					log.Println("\nFound peer:", newPeer, ", add address to peerstore")
 
-				// Adding peer addresses to local peerstore
-				host.Peerstore().AddAddr(newPeer.ID, newPeer.Addrs[0], peerstore.PermanentAddrTTL)
-				// Connect to the peer
-				if err := host.Connect(ctx, newPeer); err != nil {
-					log.Println("Connection failed:", err)
+					// Adding peer addresses to local peerstore
+					host.Peerstore().AddAddr(newPeer.ID, newPeer.Addrs[0], peerstore.PermanentAddrTTL)
+					// Connect to the peer
+					if err := host.Connect(ctx, newPeer); err != nil {
+						log.Println("Connection failed:", err)
+					}
+					log.Println("\nConnected to:", newPeer)
+
+					time.Sleep(peerlistConnectionTimeout)
+					getMatchResponse(newPeer.ID)
 				}
-				log.Println("\nConnected to:", newPeer)
-
-				time.Sleep(peerlistConnectionTimeout)
-				getMatchResponse(newPeer.ID)
 			}
 		}
-	}
+	}()
 }
 
 // GetMatchResponse collects a list of topics to which the peer is subscribed,
