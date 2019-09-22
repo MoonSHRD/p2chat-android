@@ -50,7 +50,7 @@ func main() {
 		if message != "" {
 			log.Println(message)
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(300 * time.Millisecond)
 	}
 }
 
