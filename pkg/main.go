@@ -34,7 +34,7 @@ var (
 
 	// matchProcessor is object to work with matches.
 	// Get all matches, get new match, add new match, etc.
-	matchProcessor match.MatchProcessor
+	matchProcessor = match.NewMatchProcessor()
 
 	myself          host.Host
 	globalCtx       context.Context
@@ -43,6 +43,7 @@ var (
 	messageQueue    utils.Queue
 	handler         p2chat.Handler
 	serviceTopic    string
+	matrixID        string
 
 	// Pair "Topic-CancelFunc", function for stopping listening to topic and unsubscribing
 	subscribedTopics map[string]context.CancelFunc
@@ -90,8 +91,9 @@ func readSub(subscription *pubsub.Subscription, incomingMessagesChan chan pubsub
 // PublishMessage publishes message into some topic
 func PublishMessage(topic string, text string) {
 	message := &api.BaseMessage{
-		Body: text,
-		Flag: api.FlagGenericMessage,
+		Body:         text,
+		Flag:         api.FlagGenericMessage,
+		FromMatrixID: matrixID,
 	}
 
 	sendData, err := json.Marshal(message)
@@ -179,55 +181,29 @@ func Start(rendezvous string, pid string, listenHost string, port int) {
 	subscribeToTopic(serviceTopic)
 	go GetNetworkTopics()
 
-MainLoop:
-	for {
-		select {
-		case <-ctx.Done():
-			break MainLoop
-		case newPeer := <-peerChan:
-			{
-				log.Println("\nFound peer:", newPeer, ", add address to peerstore")
+	go func() {
+	MainLoop:
+		for {
+			select {
+			case <-ctx.Done():
+				break MainLoop
+			case newPeer := <-peerChan:
+				{
+					log.Println("\nFound peer:", newPeer, ", add address to peerstore")
 
-				// Adding peer addresses to local peerstore
-				host.Peerstore().AddAddr(newPeer.ID, newPeer.Addrs[0], peerstore.PermanentAddrTTL)
-				// Connect to the peer
-				if err := host.Connect(ctx, newPeer); err != nil {
-					log.Println("Connection failed:", err)
+					// Adding peer addresses to local peerstore
+					host.Peerstore().AddAddr(newPeer.ID, newPeer.Addrs[0], peerstore.PermanentAddrTTL)
+					// Connect to the peer
+					if err := host.Connect(ctx, newPeer); err != nil {
+						log.Println("Connection failed:", err)
+					}
+					log.Println("\nConnected to:", newPeer)
+
+					time.Sleep(peerlistConnectionTimeout)
 				}
-				log.Println("\nConnected to:", newPeer)
-
-				time.Sleep(peerlistConnectionTimeout)
-				getMatchResponse(newPeer.ID)
 			}
 		}
-	}
-}
-
-// GetMatchResponse collects a list of topics to which the peer is subscribed,
-// collects a list of peers from these topics,
-// requests to its matrixIDs and then marshals them to json
-func getMatchResponse(newPeerID peer.ID) {
-	// Send request for peers identity to fills up the identity map
-	GetPeersIdentity()
-
-	var peerTopics []string
-	peerMatrixID := getMatrixIDFromPeerID(newPeerID)
-
-	// Get topics this node is subscribed to check new node inclusiveness to them
-	topics := getTopics()
-	for _, topic := range topics {
-		// Get peer list of subscribed peers to specific topic
-		topicPeers := handler.GetPeers(topic)
-
-		for _, peerID := range topicPeers {
-			// Check if new peer is included to the peer list of the specific topic
-			if peerID == newPeerID {
-				peerTopics = append(peerTopics, topic)
-			}
-		}
-	}
-
-	matchProcessor.AddNewMatch(peerMatrixID, peerTopics)
+	}()
 }
 
 // Returns the peer matrixID from identity map by its peerID
@@ -239,18 +215,17 @@ func getMatrixIDFromPeerID(peerID peer.ID) string {
 // SetMatrixID sets the matrixID of a current peer
 func SetMatrixID(mxID string) {
 	handler.SetMatrixID(mxID)
+	matrixID = mxID
 }
 
 // GetNetworkTopics requests network topics from other peers
 func GetNetworkTopics() {
-	ctx := globalCtx
-	handler.RequestNetworkTopics(ctx)
+	handler.RequestNetworkTopics()
 }
 
-// GetPeersIdentity requests MatrixID from other peers
-func GetPeersIdentity() {
-	ctx := globalCtx
-	handler.RequestPeersIdentity(ctx)
+// GetPeerIdentity requests MatrixID from specific peer
+func GetPeerIdentity(peerID string) {
+	handler.RequestPeerIdentity(peerID)
 }
 
 // Helper for getting topics
@@ -330,6 +305,10 @@ func subscribeToTopic(topic string) {
 					if ok {
 						handler.HandleIncomingMessage(topic, msg, func(textMessage p2chat.TextMessage) {
 							messageQueue.PushFront(textMessage)
+						}, func(topicMatch string, peerID string, matrixID string) {
+							matchProcessor.AddNewMatch(topicMatch, peerID, matrixID)
+						}, func(topicUnmatch string, peerID string, matrixID string) {
+							matchProcessor.RemoveMatch(topicUnmatch, peerID, matrixID)
 						})
 					} else {
 						break ListenLoop
@@ -339,6 +318,13 @@ func subscribeToTopic(topic string) {
 		}
 		return
 	}()
+
+	if topic != serviceTopic {
+		go func() {
+			time.Sleep(5 * time.Second)
+			handler.SendGreetingInTopic(topic)
+		}()
+	}
 }
 
 // UnsubscribeFromTopic allows to unsubscribe from specific topic
@@ -346,6 +332,7 @@ func UnsubscribeFromTopic(topic string) {
 	if subscribedTopics[topic] != nil {
 		subscribedTopics[topic]() // cancel context
 		delete(subscribedTopics, topic)
+		handler.SendFarewellInTopic(topic)
 	}
 }
 
