@@ -3,7 +3,7 @@ module github.com/MoonSHRD/p2chat-android
 go 1.12
 
 require (
-	github.com/MoonSHRD/p2chat v2.0.2
+	github.com/MoonSHRD/p2chat v2.0.3
 	github.com/btcsuite/btcd v0.0.0-20190629003639-c26ffa870fd8 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.7.1
