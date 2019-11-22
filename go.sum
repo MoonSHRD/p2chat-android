@@ -4,6 +4,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/Kubuxu/go-os-helper v0.0.1/go.mod h1:N8B+I7vPCT80IcP58r50u4+gEEcsZETFUpAzWW2ep1Y=
 github.com/MoonSHRD/p2chat v1.2.7 h1:lU744RRX9rlHGxO3PXh5W2BKhyatVA9Oh3EBqKRoCFk=
 github.com/MoonSHRD/p2chat v1.2.7/go.mod h1:k/77T4/y7P9Cy/NhANUOHbhjsRtYgDlGLjgEkgcYcyM=
+github.com/MoonSHRD/p2chat/v2 v2.0.4 h1:JSsNByGndxd7IlC0YgBxP31giqpxBPOYnzqUolIILGA=
+github.com/MoonSHRD/p2chat/v2 v2.0.4/go.mod h1:CrO8Ug/R6pEolXLG2AldDR0RDzn7fCfBPt/IHNk6jv0=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
 github.com/btcsuite/btcd v0.0.0-20190213025234-306aecffea32 h1:qkOC5Gd33k54tobS36cXdAzJbeHaduLtnLQQwNoIi78=
 github.com/btcsuite/btcd v0.0.0-20190213025234-306aecffea32/go.mod h1:DrZx5ec/dmnfpw9KyYoQyYo7d0KEvTkk/5M/vbZjAr8=
